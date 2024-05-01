@@ -10,10 +10,18 @@ import {
 } from "@angular/forms";
 import { delay, Observable, of } from "rxjs";
 
-function isUsernameAlreadyTakenValidator(control: AbstractControl): Observable<ValidationErrors | null> {
+function cannotStartWithValidator(value: string) {
+  return (control: AbstractControl): ValidationErrors | null => {
+    return control.value.trim().startsWith(value) ? { cannotStartWith: true } : null;
+  };
+}
+
+function isUsernameAlreadyTakenAsyncValidator(
+  control: AbstractControl
+): Observable<ValidationErrors | null> {
   let validationError: ValidationErrors | null = null;
 
-  if (control.value === "henrique") {
+  if (control.value.trim() === "henrique") {
     validationError = { usernameIsAlreadyTaken: true };
   }
 
@@ -24,6 +32,11 @@ function isUsernameAlreadyTakenValidator(control: AbstractControl): Observable<V
   selector: "app-root",
   standalone: true,
   imports: [ReactiveFormsModule, CommonModule],
+  styles: `
+    .validation-error {
+      color: red;
+    }
+  `,
   template: `
     <form [formGroup]="form">
       <fieldset>
@@ -33,26 +46,34 @@ function isUsernameAlreadyTakenValidator(control: AbstractControl): Observable<V
           placeholder="Digite seu @username"
         />
 
-        @if (form.get('username')?.touched) {
-          @if (form.get('username')?.hasError('required')) {
-            <div [ngStyle]="{ color: 'red' }">Por favor, informe um username.</div>
-          } 
-          
-          @if (form.get('username')?.hasError('usernameIsAlreadyTaken')) {
-            <div  [ngStyle]="{ color: 'red' }">O username informado já existe.</div>
+        <!-- @if (form.get("username")?.touched) { -->
+          @if (form.get("username")?.hasError("required")) {
+            <div class="validation-error">
+              Por favor, informe um username.
+            </div>
           }
-        }
+          
+          @if (form.get("username")?.hasError("cannotStartWith")) {
+            <div class="validation-error">
+              O username não pode começar com &#64;.
+            </div>
+          }
+
+          @if (form.get("username")?.hasError("usernameIsAlreadyTaken")) {
+            <div class="validation-error">
+              O username informado já existe.
+            </div>
+          }
+        <!-- }   -->
       </fieldset>
     </form>
   `,
-  styles: [],
 })
 export class AppComponent {
   form = new FormGroup({
-    username: new FormControl(
-      "",
-      Validators.required,
-      isUsernameAlreadyTakenValidator
-    ),
+    username: new FormControl("", {
+      validators: [Validators.required, cannotStartWithValidator("@")],
+      asyncValidators: [isUsernameAlreadyTakenAsyncValidator],
+    }),
   });
 }
